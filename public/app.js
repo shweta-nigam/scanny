@@ -881,17 +881,31 @@ function renderResults() {
     const actionContainer = document.createElement("div");
     actionContainer.className = "model-container-actions";
 
-    const mainCopyBtn = document.createElement("button");
-    mainCopyBtn.type = "button";
-    mainCopyBtn.className = "btn copy-model-btn";
-    mainCopyBtn.innerHTML = `📋 Copy ${group.model || "Model"} for Tally`;
-    mainCopyBtn.addEventListener("click", () => copyModelContainer(group, true));
+    const copyModelNameBtn = document.createElement("button");
+    copyModelNameBtn.type = "button";
+    copyModelNameBtn.className = "btn secondary-btn small-btn";
+    copyModelNameBtn.innerHTML = `🏷️ Copy Model Name`;
+    copyModelNameBtn.title = "Copy only the Model Name (e.g. CP-UNR-104F1)";
+    copyModelNameBtn.addEventListener("click", () => {
+      const text = group.model || "Model";
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(`Copied model name "${text}" to clipboard!`, "success");
+      });
+    });
 
     const serialsOnlyCopyBtn = document.createElement("button");
     serialsOnlyCopyBtn.type = "button";
-    serialsOnlyCopyBtn.className = "btn secondary-btn small-btn";
-    serialsOnlyCopyBtn.textContent = "Copy Serials Only";
+    serialsOnlyCopyBtn.className = "btn copy-model-btn";
+    serialsOnlyCopyBtn.innerHTML = `📋 Copy Serials Only`;
+    serialsOnlyCopyBtn.title = "Copy serial numbers for Tally without Model Name";
     serialsOnlyCopyBtn.addEventListener("click", () => copyModelContainer(group, false));
+
+    const mainCopyBtn = document.createElement("button");
+    mainCopyBtn.type = "button";
+    mainCopyBtn.className = "btn secondary-btn small-btn";
+    mainCopyBtn.innerHTML = `📋 Copy Model + Serials`;
+    mainCopyBtn.title = "Copy Model Name on Line 1, Serials on Line 2 (Windows CRLF)";
+    mainCopyBtn.addEventListener("click", () => copyModelContainer(group, true));
 
     const saveTxtBtn = document.createElement("button");
     saveTxtBtn.type = "button";
@@ -899,7 +913,7 @@ function renderResults() {
     saveTxtBtn.textContent = "💾 Save TXT";
     saveTxtBtn.addEventListener("click", () => downloadModelTxt(group));
 
-    actionContainer.append(mainCopyBtn, serialsOnlyCopyBtn, saveTxtBtn);
+    actionContainer.append(serialsOnlyCopyBtn, copyModelNameBtn, mainCopyBtn, saveTxtBtn);
     tallyBox.append(tallyLabel, modelArea, actionContainer);
     box.appendChild(tallyBox);
 
@@ -948,7 +962,7 @@ function formatSerialsChunk(serialsList, perLine, sep) {
     const chunk = serialsList.slice(i, i + perLine);
     lines.push(chunk.join(sep));
   }
-  return lines.join("\n");
+  return lines.join("\r\n");
 }
 
 function updateTallyOutput() {
@@ -968,7 +982,7 @@ function updateTallyOutput() {
     const formattedBlock = formatSerialsChunk(validSerials, perLine, sep);
 
     const modelOutputText = includeHeaders
-      ? (group.model ? `${group.model}\n${formattedBlock}` : formattedBlock)
+      ? (group.model ? `${group.model}\r\n${formattedBlock}` : formattedBlock)
       : formattedBlock;
 
     // Update individual model textarea preview inside container
@@ -983,7 +997,7 @@ function updateTallyOutput() {
   }
 
   if (tallyOutput) {
-    tallyOutput.value = allSections.join("\n\n");
+    tallyOutput.value = allSections.join("\r\n\r\n");
   }
 }
 
@@ -997,11 +1011,11 @@ function copyModelContainer(group, includeHeaderInCopy) {
   const sep = getDelimiterString();
   const formattedBlock = formatSerialsChunk(validSerials, state.perLine, sep);
   const textToCopy = includeHeaderInCopy && includeModelHeaders && includeModelHeaders.checked
-    ? (group.model ? `${group.model}\n${formattedBlock}` : formattedBlock)
+    ? (group.model ? `${group.model}\r\n${formattedBlock}` : formattedBlock)
     : formattedBlock;
 
   navigator.clipboard.writeText(textToCopy).then(() => {
-    showToast(`Copied ${group.model || "Model"} serials to clipboard for Tally!`, "success");
+    showToast(`Copied ${includeHeaderInCopy ? "Model + Serials" : "Serials"} to clipboard!`, "success");
   }).catch((err) => {
     showToast(`Copy failed: ${err.message}`, "error");
   });
@@ -1015,7 +1029,7 @@ function downloadModelTxt(group) {
   }
   const sep = getDelimiterString();
   const formattedBlock = formatSerialsChunk(validSerials, state.perLine, sep);
-  const text = group.model ? `${group.model}\n${formattedBlock}` : formattedBlock;
+  const text = group.model ? `${group.model}\r\n${formattedBlock}` : formattedBlock;
 
   const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
   const link = document.createElement("a");
