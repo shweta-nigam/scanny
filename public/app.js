@@ -8,7 +8,7 @@ const state = {
   images: [],
   results: [],
   perLine: Number(localStorage.getItem("pss_perLine") || 2),
-  delimiter: localStorage.getItem("pss_delimiter") || "tab",
+  delimiter: localStorage.getItem("pss_delimiter") || "comma",
   includeModelHeaders: localStorage.getItem("pss_headers") !== "false",
   aiEnabled: false,
   scanning: false,
@@ -84,7 +84,7 @@ function uid() {
 }
 
 function normalizeSerial(value) {
-  return String(value || "").trim().replace(/\s+/g, "");
+  return String(value || "").trim().replace(/\.{2,}|…/g, "").replace(/\s+/g, "");
 }
 
 function serialKey(value) {
@@ -901,9 +901,10 @@ addModelBtn.addEventListener("click", () => {
 function getDelimiterString() {
   switch (state.delimiter) {
     case "space": return " ";
-    case "comma": return ", ";
-    case "tab":
-    default: return "\t";
+    case "comma_no_space": return ",";
+    case "tab": return "\t";
+    case "comma":
+    default: return ", ";
   }
 }
 
@@ -935,7 +936,7 @@ function updateTallyOutput() {
     const formattedBlock = formatSerialsChunk(validSerials, perLine, sep);
 
     if (includeHeaders) {
-      const headerText = `=== MODEL: ${group.model || "General"} (${validSerials.length} Serials) ===`;
+      const headerText = group.model || "Model";
       outputSections.push(`${headerText}\n${formattedBlock}`);
     } else {
       outputSections.push(formattedBlock);
