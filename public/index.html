@@ -1,6 +1,245 @@
-<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Product Serial Scanner</title><link rel="stylesheet" href="style.css"><script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script><script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script></head><body><main><header><div><small>INVENTORY TOOL</small><h1>Product Serial Scanner</h1><p>Scan multiple photos and prepare serial numbers for Tally.</p></div><span id="aiBadge" class="badge">AI checking…</span></header>
-<section class="card"><div class="head"><div><h2>1. Add product photos</h2><p>Add many images, or take several camera photos.</p></div><b id="imageCount">0 images</b></div><div class="actions"><label class="btn primary">📁 Add images<input id="imageInput" type="file" accept="image/*" multiple hidden></label><button id="cameraBtn" class="btn">📷 Camera</button><button id="scanAllBtn" class="btn success">⚡ Scan all</button><button id="clearBtn" class="btn danger">Clear</button></div><div id="cameraPanel" class="camera hidden"><video id="cameraVideo" autoplay playsinline muted></video><div class="actions"><button id="captureBtn" class="btn primary">Take photo</button><button id="closeCameraBtn" class="btn">Close camera</button></div></div><div id="imageGrid" class="grid"></div><div id="emptyState" class="empty">No images yet.</div></section>
-<section class="card"><div class="head"><div><h2>2. Scan status</h2><p id="scanSummary">Ready.</p></div><span id="progressText"></span></div><div class="progress"><i id="progressBar"></i></div></section>
-<section class="card"><div class="head"><div><h2>3. Results</h2><p>Review and correct before copying.</p></div><b id="serialCount">0 serials</b></div><div id="groupList"></div><div id="noResults" class="empty">Scan your images to see results.</div></section>
-<section class="card"><h2>4. Tally output</h2><p>Choose serials per line.</p><div class="line"><label><input type="radio" name="perLine" value="1"> 1</label><label><input type="radio" name="perLine" value="2"> 2</label><label><input type="radio" name="perLine" value="3"> 3</label></div><textarea id="tallyOutput" readonly placeholder="Tally-ready output"></textarea><button id="copyBtn" class="btn primary">Copy for Tally</button> <span id="copyStatus"></span></section>
-<details class="card"><summary>Advanced details</summary><div id="advancedDetails"></div></details><footer>Local barcode/OCR first • Optional Qwen vision fallback • No database</footer></main><template id="imageTemplate"><article class="image"><img class="thumb"><div><strong class="name"></strong><small class="status">Waiting</small></div><button class="remove">×</button></article></template><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Serial & Model Scanner for Tally</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+  <main class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand-title">
+        <div class="logo-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="7" y1="8" x2="17" y2="8"></line>
+            <line x1="7" y1="12" x2="17" y2="12"></line>
+            <line x1="7" y1="16" x2="12" y2="16"></line>
+          </svg>
+        </div>
+        <div>
+          <small class="tagline">INVENTORY & TALLY ERP TOOL</small>
+          <h1>Product Serial Scanner</h1>
+          <p>Scan product images, auto-detect model numbers & prepare serial numbers for Tally</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span id="aiBadge" class="badge">Checking AI…</span>
+        <span id="batchLimitBadge" class="badge limit-badge">0 / 20 Photos</span>
+      </div>
+    </header>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Section 1: Image Upload & Camera -->
+    <section class="card dropzone-card" id="dropZone">
+      <div class="card-head">
+        <div>
+          <h2>1. Add Product Photos</h2>
+          <p>Upload files or snap photos using camera (Maximum 20 images limit per scan)</p>
+        </div>
+        <b id="imageCount" class="counter-badge">0 / 20 images</b>
+      </div>
+
+      <!-- Dropzone upload UI -->
+      <div class="upload-area">
+        <div class="upload-prompt">
+          <div class="upload-icon">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+          </div>
+          <p class="drop-text">Drag & drop images here or use options below</p>
+          <small class="limit-info">Supports JPG, PNG, WEBP • Max 20 photos per batch</small>
+        </div>
+
+        <div class="actions-bar">
+          <label class="btn primary-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            Add Images
+            <input id="imageInput" type="file" accept="image/*" multiple hidden>
+          </label>
+
+          <button id="cameraBtn" class="btn secondary-btn" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+            Camera Mode
+          </button>
+
+          <button id="scanAllBtn" class="btn success-btn" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            Scan All Images
+          </button>
+
+          <button id="clearBtn" class="btn danger-btn" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            Clear All
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Camera Panel -->
+      <div id="cameraPanel" class="camera-panel hidden">
+        <div class="camera-header">
+          <span class="camera-title">📷 Multi-Shot Camera View</span>
+          <span id="cameraCapturedCount" class="badge captured-badge">Captured: 0</span>
+        </div>
+        <div class="video-container">
+          <video id="cameraVideo" autoplay playsinline muted></video>
+          <div class="camera-overlay-grid"></div>
+        </div>
+        <div class="camera-actions">
+          <button id="captureBtn" class="btn primary-btn snap-btn" type="button">
+            ⚡ Snap Photo
+          </button>
+          <button id="switchCameraBtn" class="btn secondary-btn hidden" type="button">
+            🔄 Switch Camera
+          </button>
+          <button id="closeCameraBtn" class="btn outline-btn" type="button">
+            Close Camera
+          </button>
+        </div>
+      </div>
+
+      <!-- Image Thumbnails Grid -->
+      <div id="imageGrid" class="image-grid"></div>
+      <div id="emptyState" class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+        <p>No images added yet. Click <strong>Add Images</strong> or <strong>Camera Mode</strong> to get started.</p>
+      </div>
+    </section>
+
+    <!-- Section 2: Scan Status -->
+    <section class="card status-card">
+      <div class="card-head">
+        <div>
+          <h2>2. Scan Progress & Status</h2>
+          <p id="scanSummary">Ready to process batch.</p>
+        </div>
+        <span id="progressText" class="progress-label"></span>
+      </div>
+      <div class="progress-bar-track">
+        <div id="progressBar" class="progress-bar-fill"></div>
+      </div>
+    </section>
+
+    <!-- Section 3: Scanned Results & Model Categorization -->
+    <section class="card results-card">
+      <div class="card-head">
+        <div>
+          <h2>3. Scanned Models & Serial Numbers</h2>
+          <p>Grouped by Model Number. Edit, add, or delete serials before copying to Tally.</p>
+        </div>
+        <div class="results-meta">
+          <b id="serialCount" class="counter-badge">0 Serials</b>
+          <button id="addModelBtn" class="btn secondary-btn small-btn" type="button">+ Add Model Group</button>
+        </div>
+      </div>
+
+      <div id="groupList" class="group-list"></div>
+      <div id="noResults" class="empty-state">
+        <p>Scan your images to automatically categorize serial numbers by product model.</p>
+      </div>
+    </section>
+
+    <!-- Section 4: Tally Output Generator -->
+    <section class="card tally-card">
+      <div class="card-head">
+        <div>
+          <h2>4. Tally ERP Output</h2>
+          <p>Format serial numbers per line break for quick pasting into Tally fields.</p>
+        </div>
+      </div>
+
+      <div class="tally-controls">
+        <div class="control-group">
+          <label class="control-label">Serials Per Line Break:</label>
+          <div class="line-toggle-group">
+            <label class="radio-chip">
+              <input type="radio" name="perLine" value="1">
+              <span>1 Per Line</span>
+            </label>
+            <label class="radio-chip">
+              <input type="radio" name="perLine" value="2">
+              <span>2 Per Line</span>
+            </label>
+            <label class="radio-chip">
+              <input type="radio" name="perLine" value="3">
+              <span>3 Per Line</span>
+            </label>
+            <label class="radio-chip">
+              <input type="radio" name="perLine" value="4">
+              <span>4 Per Line</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label">Format Options:</label>
+          <div class="format-options">
+            <label class="checkbox-chip">
+              <input type="checkbox" id="includeModelHeaders" checked>
+              <span>Include Model Headers</span>
+            </label>
+            <label class="select-label">
+              <span>Delimiter:</span>
+              <select id="delimiterSelect" class="styled-select">
+                <option value="tab">Tab (\t) [Tally Default]</option>
+                <option value="space">Space</option>
+                <option value="comma">Comma (, )</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="textarea-wrapper">
+        <textarea id="tallyOutput" readonly placeholder="Tally-ready serial number output will appear here..."></textarea>
+      </div>
+
+      <div class="export-actions">
+        <button id="copyBtn" class="btn primary-btn copy-main-btn" type="button">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          Copy All for Tally
+        </button>
+        <button id="downloadTxtBtn" class="btn secondary-btn" type="button">💾 Download TXT</button>
+        <button id="downloadCsvBtn" class="btn secondary-btn" type="button">📊 Export CSV</button>
+        <span id="copyStatus" class="copy-status"></span>
+      </div>
+    </section>
+
+    <!-- Advanced Details Accordion -->
+    <details class="card advanced-card">
+      <summary>Advanced Diagnostics & Raw Data</summary>
+      <div id="advancedDetails" class="advanced-details"></div>
+    </details>
+
+    <footer class="app-footer">
+      <p>Product Serial & Model Scanner • Native Barcode & Vision OCR • Optimized for Tally ERP & Tally Prime</p>
+    </footer>
+  </main>
+
+  <!-- Image item template -->
+  <template id="imageTemplate">
+    <article class="image-card">
+      <img class="thumb" alt="Thumbnail">
+      <div class="image-info">
+        <strong class="image-name"></strong>
+        <span class="image-status">Waiting</span>
+      </div>
+      <button class="remove-image" type="button" title="Remove image">&times;</button>
+    </article>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
