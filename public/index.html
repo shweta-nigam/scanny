@@ -132,34 +132,20 @@
       </div>
     </section>
 
-    <!-- Section 3: Scanned Results & Model Categorization -->
-    <section class="card results-card">
-      <div class="card-head">
-        <div>
-          <h2>3. Scanned Models & Serial Numbers</h2>
-          <p>Grouped by Model Number. Edit, add, or delete serials before copying to Tally.</p>
-        </div>
-        <div class="results-meta">
-          <b id="serialCount" class="counter-badge">0 Serials</b>
-          <button id="addModelBtn" class="btn secondary-btn small-btn" type="button">+ Add Model Group</button>
-        </div>
-      </div>
-
-      <div id="groupList" class="group-list"></div>
-      <div id="noResults" class="empty-state">
-        <p>Scan your images to automatically categorize serial numbers by product model.</p>
-      </div>
-    </section>
-
-    <!-- Section 4: Tally Output Generator -->
+    <!-- Section 3: Model Containers & Dedicated Copy -->
     <section class="card tally-card">
       <div class="card-head">
         <div>
-          <h2>4. Tally ERP Output</h2>
-          <p>Format serial numbers per line break for quick pasting into Tally fields.</p>
+          <h2>3. Separate Model Containers for Tally</h2>
+          <p>Each model has its own container & dedicated copy button so Tally entries stay clean.</p>
+        </div>
+        <div class="results-meta">
+          <b id="serialCount" class="counter-badge">0 Serials</b>
+          <button id="addModelBtn" class="btn secondary-btn small-btn" type="button">+ Add Model Container</button>
         </div>
       </div>
 
+      <!-- Global Tally Format Controls -->
       <div class="tally-controls">
         <div class="control-group">
           <label class="control-label">Serials Per Line Break:</label>
@@ -188,7 +174,7 @@
           <div class="format-options">
             <label class="checkbox-chip">
               <input type="checkbox" id="includeModelHeaders" checked>
-              <span>Include Model Headers</span>
+              <span>Include Model Name Header</span>
             </label>
             <label class="select-label">
               <span>Delimiter:</span>
@@ -203,20 +189,35 @@
         </div>
       </div>
 
-      <div class="textarea-wrapper">
-        <textarea id="tallyOutput" readonly placeholder="Tally-ready serial number output will appear here..."></textarea>
-      </div>
-
-      <div class="export-actions">
-        <button id="copyBtn" class="btn primary-btn copy-main-btn" type="button">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          Copy All for Tally
-        </button>
-        <button id="downloadTxtBtn" class="btn secondary-btn" type="button">💾 Download TXT</button>
-        <button id="downloadCsvBtn" class="btn secondary-btn" type="button">📊 Export CSV</button>
-        <span id="copyStatus" class="copy-status"></span>
+      <!-- Separate Model Containers Container -->
+      <div id="groupList" class="group-list"></div>
+      <div id="noResults" class="empty-state">
+        <p>Scan your images to automatically generate individual model containers.</p>
       </div>
     </section>
+
+    <!-- Section 4: Master Export (Optional Combined Copy) -->
+    <details class="card master-export-card">
+      <summary class="master-summary">
+        <span>📦 Master Combined Export (All Models Together)</span>
+        <span class="export-hint">Optional</span>
+      </summary>
+      <div class="master-export-body">
+        <p class="help-text">Use this section if you want to export or copy serials for all models combined in a single block.</p>
+        <div class="textarea-wrapper">
+          <textarea id="tallyOutput" readonly placeholder="Combined output across all models will appear here..."></textarea>
+        </div>
+        <div class="export-actions">
+          <button id="copyBtn" class="btn secondary-btn" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            Copy All Models Together
+          </button>
+          <button id="downloadTxtBtn" class="btn secondary-btn" type="button">💾 Download TXT</button>
+          <button id="downloadCsvBtn" class="btn secondary-btn" type="button">📊 Export CSV</button>
+          <span id="copyStatus" class="copy-status"></span>
+        </div>
+      </div>
+    </details>
 
     <!-- Advanced Details Accordion -->
     <details class="card advanced-card">

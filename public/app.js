@@ -759,7 +759,7 @@ async function scanAll() {
 $("scanAllBtn").addEventListener("click", scanAll);
 
 /* =========================================================
-   RESULTS UI & CATEGORIZATION
+   RESULTS UI & SEPARATE MODEL CONTAINERS
 ========================================================= */
 
 function renderResults() {
@@ -772,7 +772,7 @@ function renderResults() {
     const box = document.createElement("article");
     box.className = "model-group-card";
 
-    // Header
+    // 1. Header Bar
     const head = document.createElement("div");
     head.className = "model-group-header";
 
@@ -799,29 +799,23 @@ function renderResults() {
     badge.className = "counter-badge";
     badge.textContent = `${group.serials.length} serials`;
 
-    const copyGroupBtn = document.createElement("button");
-    copyGroupBtn.type = "button";
-    copyGroupBtn.className = "btn secondary-btn small-btn";
-    copyGroupBtn.textContent = "📋 Copy Model Serials";
-    copyGroupBtn.addEventListener("click", () => copyModelSerials(group));
-
     const removeGroupBtn = document.createElement("button");
     removeGroupBtn.type = "button";
     removeGroupBtn.className = "delete-serial-btn";
     removeGroupBtn.innerHTML = "&times;";
-    removeGroupBtn.title = "Delete Model Group";
+    removeGroupBtn.title = "Delete Model Container";
     removeGroupBtn.addEventListener("click", () => {
       state.results.splice(groupIdx, 1);
       renderResults();
       saveState();
-      showToast("Model group deleted.", "info");
+      showToast("Model container deleted.", "info");
     });
 
-    rightActions.append(badge, copyGroupBtn, removeGroupBtn);
+    rightActions.append(badge, removeGroupBtn);
     head.append(titleWrap, rightActions);
     box.appendChild(head);
 
-    // Serials List
+    // 2. Serials Input List
     const list = document.createElement("div");
     list.className = "serial-row-list";
 
@@ -869,6 +863,46 @@ function renderResults() {
     });
 
     box.append(list, addSerialBtn);
+
+    // 3. Dedicated Model Output Container Box
+    const tallyBox = document.createElement("div");
+    tallyBox.className = "model-tally-box";
+
+    const tallyLabel = document.createElement("div");
+    tallyLabel.className = "model-tally-label";
+    tallyLabel.innerHTML = `<span>📋 Tally Output: <strong>${group.model || "Model"}</strong></span>`;
+
+    const modelArea = document.createElement("textarea");
+    modelArea.className = "model-preview-textarea";
+    modelArea.id = `modelArea_${group.id}`;
+    modelArea.readOnly = true;
+    modelArea.rows = 2;
+
+    const actionContainer = document.createElement("div");
+    actionContainer.className = "model-container-actions";
+
+    const mainCopyBtn = document.createElement("button");
+    mainCopyBtn.type = "button";
+    mainCopyBtn.className = "btn copy-model-btn";
+    mainCopyBtn.innerHTML = `📋 Copy ${group.model || "Model"} for Tally`;
+    mainCopyBtn.addEventListener("click", () => copyModelContainer(group, true));
+
+    const serialsOnlyCopyBtn = document.createElement("button");
+    serialsOnlyCopyBtn.type = "button";
+    serialsOnlyCopyBtn.className = "btn secondary-btn small-btn";
+    serialsOnlyCopyBtn.textContent = "Copy Serials Only";
+    serialsOnlyCopyBtn.addEventListener("click", () => copyModelContainer(group, false));
+
+    const saveTxtBtn = document.createElement("button");
+    saveTxtBtn.type = "button";
+    saveTxtBtn.className = "btn secondary-btn small-btn";
+    saveTxtBtn.textContent = "💾 Save TXT";
+    saveTxtBtn.addEventListener("click", () => downloadModelTxt(group));
+
+    actionContainer.append(mainCopyBtn, serialsOnlyCopyBtn, saveTxtBtn);
+    tallyBox.append(tallyLabel, modelArea, actionContainer);
+    box.appendChild(tallyBox);
+
     groupList.appendChild(box);
   });
 
@@ -891,11 +925,11 @@ addModelBtn.addEventListener("click", () => {
   state.results.push(newGroup);
   renderResults();
   saveState();
-  showToast("Added new Model Category.", "info");
+  showToast("Added new Model Container.", "info");
 });
 
 /* =========================================================
-   TALLY OUTPUT GENERATION (1, 2, 3, 4 LINE BREAKS)
+   TALLY OUTPUT GENERATION FOR EACH CONTAINER
 ========================================================= */
 
 function getDelimiterString() {
@@ -923,43 +957,73 @@ function updateTallyOutput() {
   const includeHeaders = includeModelHeaders ? includeModelHeaders.checked : true;
 
   if (state.results.length === 0) {
-    tallyOutput.value = "";
+    if (tallyOutput) tallyOutput.value = "";
     return;
   }
 
-  const outputSections = [];
+  const allSections = [];
 
   for (const group of state.results) {
     const validSerials = (group.serials || []).map(normalizeSerial).filter(Boolean);
-    if (!validSerials.length) continue;
-
     const formattedBlock = formatSerialsChunk(validSerials, perLine, sep);
 
-    if (includeHeaders) {
-      const headerText = group.model || "Model";
-      outputSections.push(`${headerText}\n${formattedBlock}`);
-    } else {
-      outputSections.push(formattedBlock);
+    const modelOutputText = includeHeaders
+      ? (group.model ? `${group.model}\n${formattedBlock}` : formattedBlock)
+      : formattedBlock;
+
+    // Update individual model textarea preview inside container
+    const area = document.getElementById(`modelArea_${group.id}`);
+    if (area) {
+      area.value = modelOutputText || "No valid serials";
+    }
+
+    if (validSerials.length > 0) {
+      allSections.push(modelOutputText);
     }
   }
 
-  tallyOutput.value = outputSections.join("\n\n");
+  if (tallyOutput) {
+    tallyOutput.value = allSections.join("\n\n");
+  }
 }
 
-function copyModelSerials(group) {
+function copyModelContainer(group, includeHeaderInCopy) {
   const validSerials = (group.serials || []).map(normalizeSerial).filter(Boolean);
   if (!validSerials.length) {
-    showToast("No serials to copy in this model.", "warning");
+    showToast(`No serials to copy in ${group.model || "this model"}.`, "warning");
     return;
   }
 
   const sep = getDelimiterString();
-  const text = formatSerialsChunk(validSerials, state.perLine, sep);
-  navigator.clipboard.writeText(text).then(() => {
-    showToast(`Copied ${validSerials.length} serials for model ${group.model}!`, "success");
+  const formattedBlock = formatSerialsChunk(validSerials, state.perLine, sep);
+  const textToCopy = includeHeaderInCopy && includeModelHeaders && includeModelHeaders.checked
+    ? (group.model ? `${group.model}\n${formattedBlock}` : formattedBlock)
+    : formattedBlock;
+
+  navigator.clipboard.writeText(textToCopy).then(() => {
+    showToast(`Copied ${group.model || "Model"} serials to clipboard for Tally!`, "success");
   }).catch((err) => {
     showToast(`Copy failed: ${err.message}`, "error");
   });
+}
+
+function downloadModelTxt(group) {
+  const validSerials = (group.serials || []).map(normalizeSerial).filter(Boolean);
+  if (!validSerials.length) {
+    showToast("No serials to download.", "warning");
+    return;
+  }
+  const sep = getDelimiterString();
+  const formattedBlock = formatSerialsChunk(validSerials, state.perLine, sep);
+  const text = group.model ? `${group.model}\n${formattedBlock}` : formattedBlock;
+
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `${(group.model || "model").replace(/[^a-z0-9]/gi, "_")}_serials.txt`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  showToast(`Downloaded TXT for ${group.model}.`, "success");
 }
 
 /* Radio buttons for 1, 2, 3, 4 line breaks */
