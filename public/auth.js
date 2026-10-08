@@ -1,0 +1,1 @@
+// Better Auth is handled on the backend in ./auth.js and mounted via server.js (/api/auth/*)

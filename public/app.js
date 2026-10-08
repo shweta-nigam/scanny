@@ -1178,3 +1178,154 @@ function loadState() {
 
 loadState();
 updateImageCount();
+
+/* =========================================================
+   BETTER AUTH & GOOGLE OAUTH FRONTEND INTEGRATION
+========================================================= */
+
+const openAuthModalBtn = $("openAuthModalBtn");
+const closeAuthModalBtn = $("closeAuthModalBtn");
+const authModal = $("authModal");
+const userLoggedInView = $("userLoggedInView");
+const userAvatar = $("userAvatar");
+const userName = $("userName");
+const logoutBtn = $("logoutBtn");
+const googleSignInBtn = $("googleSignInBtn");
+
+const tabSignIn = $("tabSignIn");
+const tabSignUp = $("tabSignUp");
+const signInForm = $("signInForm");
+const signUpForm = $("signUpForm");
+
+let currentUser = null;
+
+// Modal Toggles
+openAuthModalBtn?.addEventListener("click", () => {
+  authModal?.classList.remove("hidden");
+});
+
+closeAuthModalBtn?.addEventListener("click", () => {
+  authModal?.classList.add("hidden");
+});
+
+authModal?.addEventListener("click", (e) => {
+  if (e.target === authModal) authModal.classList.add("hidden");
+});
+
+// Auth Tabs Switch
+tabSignIn?.addEventListener("click", () => {
+  tabSignIn.classList.add("active");
+  tabSignUp.classList.remove("active");
+  signInForm?.classList.remove("hidden");
+  signUpForm?.classList.add("hidden");
+});
+
+tabSignUp?.addEventListener("click", () => {
+  tabSignUp.classList.add("active");
+  tabSignIn.classList.remove("active");
+  signUpForm?.classList.remove("hidden");
+  signInForm?.classList.add("hidden");
+});
+
+// Google OAuth Sign In
+googleSignInBtn?.addEventListener("click", async () => {
+  try {
+    showToast("Redirecting to Google Sign-In...", "info");
+    window.location.href = "/api/auth/sign-in/social?provider=google&callbackURL=" + encodeURIComponent(window.location.origin);
+  } catch (err) {
+    showToast(`Google Auth Error: ${err.message}`, "error");
+  }
+});
+
+// Email Sign In
+signInForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = $("signInEmail").value;
+  const password = $("signInPassword").value;
+
+  try {
+    const res = await fetch("/api/auth/sign-in/email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || data.error || "Invalid credentials");
+
+    showToast("Signed in successfully!", "success");
+    authModal?.classList.add("hidden");
+    await checkSession();
+  } catch (err) {
+    showToast(`Sign in failed: ${err.message}`, "error");
+  }
+});
+
+// Email Sign Up
+signUpForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = $("signUpName").value;
+  const email = $("signUpEmail").value;
+  const password = $("signUpPassword").value;
+
+  try {
+    const res = await fetch("/api/auth/sign-up/email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || data.error || "Registration failed");
+
+    showToast("Account created successfully!", "success");
+    authModal?.classList.add("hidden");
+    await checkSession();
+  } catch (err) {
+    showToast(`Sign up failed: ${err.message}`, "error");
+  }
+});
+
+// Logout
+logoutBtn?.addEventListener("click", async () => {
+  try {
+    await fetch("/api/auth/sign-out", { method: "POST" });
+    currentUser = null;
+    updateAuthUI();
+    showToast("Logged out successfully.", "info");
+  } catch (err) {
+    showToast(`Logout error: ${err.message}`, "error");
+  }
+});
+
+// Check Session on Load
+async function checkSession() {
+  try {
+    const res = await fetch("/api/auth/get-session");
+    if (!res.ok) {
+      currentUser = null;
+      updateAuthUI();
+      return;
+    }
+    const data = await res.json();
+    currentUser = data?.user || null;
+    updateAuthUI();
+  } catch (err) {
+    currentUser = null;
+    updateAuthUI();
+  }
+}
+
+function updateAuthUI() {
+  if (currentUser) {
+    if (userName) userName.textContent = currentUser.name || currentUser.email || "User";
+    if (userAvatar) {
+      userAvatar.src = currentUser.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name || "User")}&background=38bdf8&color=04131d`;
+    }
+    userLoggedInView?.classList.remove("hidden");
+    openAuthModalBtn?.classList.add("hidden");
+  } else {
+    userLoggedInView?.classList.add("hidden");
+    openAuthModalBtn?.classList.remove("hidden");
+  }
+}
+
+checkSession();
