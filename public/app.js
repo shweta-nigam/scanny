@@ -1227,12 +1227,40 @@ tabSignUp?.addEventListener("click", () => {
   signInForm?.classList.add("hidden");
 });
 
-// Google OAuth Sign In
+// Google OAuth Sign In & Sign Up
 googleSignInBtn?.addEventListener("click", async () => {
+  const originalHtml = googleSignInBtn.innerHTML;
   try {
-    showToast("Redirecting to Google Sign-In...", "info");
-    window.location.href = "/api/auth/sign-in/social?provider=google&callbackURL=" + encodeURIComponent(window.location.origin);
+    googleSignInBtn.disabled = true;
+    googleSignInBtn.style.opacity = "0.75";
+    googleSignInBtn.innerHTML = `
+      <svg class="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" style="opacity:0.25;"></circle>
+        <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" style="opacity:0.75;"></path>
+      </svg>
+      Connecting to Google...
+    `;
+    showToast("Connecting to Google...", "info");
+
+    const res = await fetch("/api/auth/sign-in/social", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: "google",
+        callbackURL: window.location.origin
+      })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.url) {
+      window.location.href = data.url;
+    } else {
+      throw new Error(data.message || data.error || "Failed to initiate Google sign-in");
+    }
   } catch (err) {
+    googleSignInBtn.disabled = false;
+    googleSignInBtn.style.opacity = "1";
+    googleSignInBtn.innerHTML = originalHtml;
     showToast(`Google Auth Error: ${err.message}`, "error");
   }
 });
@@ -1307,6 +1335,9 @@ async function checkSession() {
     }
     const data = await res.json();
     currentUser = data?.user || null;
+    if (currentUser) {
+      showToast(`Welcome back, ${currentUser.name || currentUser.email}!`, "success");
+    }
     updateAuthUI();
   } catch (err) {
     currentUser = null;
@@ -1328,4 +1359,14 @@ function updateAuthUI() {
   }
 }
 
+function handleAuthUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("error")) {
+    const err = params.get("error");
+    showToast(`Google Auth: ${err}`, "error");
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
+
+handleAuthUrlParams();
 checkSession();

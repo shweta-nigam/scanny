@@ -1,13 +1,16 @@
-import 'dotenv/config';
-import express from 'express';
-import OpenAI from 'openai';
+import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { auth } from './auth.js';
-import { toNodeHandler } from 'better-auth/node';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+import express from 'express';
+import OpenAI from 'openai';
+import { auth } from './auth.js';
+import { toNodeHandler } from 'better-auth/node';
+
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
